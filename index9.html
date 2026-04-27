@@ -1,0 +1,194 @@
+"}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>3D健康迷宮（第一人稱）</title>
+<style>
+body { margin:0; overflow:hidden; }
+#ui {
+position:fixed; top:10px; left:10px;
+color:white; font-size:18px;
+}
+#questionBox {
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+background:white;
+padding:20px;
+display:none;
+}
+button { margin:5px; }
+</style>
+</head>
+
+<body>
+
+<div id="ui">生命值：❤️❤️❤️</div>
+
+<div id="questionBox">
+<h3 id="q"></h3>
+<div id="choices"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158/examples/js/controls/PointerLockControls.js"></script>
+
+<script>
+
+// ===== 基本場景 =====
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202020);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// ===== 控制 =====
+const controls = new THREE.PointerLockControls(camera, document.body);
+document.body.onclick = () => controls.lock();
+
+// ===== 光 =====
+const light = new THREE.PointLight(0xffffff,1);
+light.position.set(10,20,10);
+scene.add(light);
+
+// ===== 迷宮 =====
+const maze = [
+[1,1,1,1,1],
+[1,0,0,0,1],
+[1,0,1,0,1],
+[1,0,0,0,1],
+[1,1,1,1,1],
+];
+
+const walls = [];
+
+maze.forEach((row,z)=>{
+row.forEach((cell,x)=>{
+if(cell===1){
+let wall = new THREE.Mesh(
+new THREE.BoxGeometry(10,10,10),
+new THREE.MeshStandardMaterial({color:0x555555})
+);
+wall.position.set(x10,5,z10);
+scene.add(wall);
+walls.push(wall);
+}
+});
+});
+
+// 地板
+const floor = new THREE.Mesh(
+new THREE.PlaneGeometry(100,100),
+new THREE.MeshStandardMaterial({color:0x888888})
+);
+floor.rotation.x = -Math.PI/2;
+scene.add(floor);
+
+// 玩家位置
+camera.position.set(10,5,10);
+
+// ===== 寶箱 =====
+const goal = new THREE.Mesh(
+new THREE.BoxGeometry(5,5,5),
+new THREE.MeshStandardMaterial({color:0xffd700})
+);
+goal.position.set(30,2.5,30);
+scene.add(goal);
+
+// ===== 生命 =====
+let life = 3;
+
+// ===== 題庫 =====
+let questions = [
+{q:"正常體溫？",c:["35","36","37","38"],a:2},
+{q:"水量？",c:["1000","2000","3000","4000"],a:1},
+{q:"運動？",c:["1天","3天","5天","7天"],a:1},
+];
+questions = questions.sort(()=>Math.random()-0.5);
+
+// ===== 題目UI =====
+function askQuestion(callback){
+if(questions.length===0){ callback(); return; }
+
+let q=questions.pop();
+document.getElementById("questionBox").style.display="block";
+document.getElementById("q").innerText=q.q;
+
+let cDiv=document.getElementById("choices");
+cDiv.innerHTML="";
+
+q.c.forEach((choice,i)=>{
+let btn=document.createElement("button");
+btn.innerText=choice;
+btn.onclick=()=>{
+if(i===q.a){
+document.getElementById("questionBox").style.display="none";
+callback();
+}else{
+alert("答錯！");
+}
+};
+cDiv.appendChild(btn);
+});
+}
+
+// ===== 碰撞 =====
+function checkCollision(newPos){
+for(let wall of walls){
+if(newPos.distanceTo(wall.position)<8){
+return true;
+}
+}
+return false;
+}
+
+// ===== 移動 =====
+let velocity = new THREE.Vector3();
+
+document.addEventListener("keydown",(e)=>{
+let dir = new THREE.Vector3();
+
+if(e.key==="w") dir.z -=1;
+if(e.key==="s") dir.z +=1;
+if(e.key==="a") dir.x -=1;
+if(e.key==="d") dir.x +=1;
+
+dir.applyQuaternion(camera.quaternion);
+let newPos = camera.position.clone().add(dir.multiplyScalar(2));
+
+if(checkCollision(newPos)){
+life--;
+document.getElementById("ui").innerText="生命值："+ "❤️".repeat(life);
+if(life<=0){
+alert("你死了 💀");
+location.reload();
+}
+return;
+}
+
+askQuestion(()=>{
+camera.position.copy(newPos);
+
+// 到終點
+if(camera.position.distanceTo(goal.position)<5){
+alert("找到寶箱 🎁");
+location.reload();
+}
+});
+});
+
+// ===== 渲染 =====
+function animate(){
+requestAnimationFrame(animate);
+renderer.render(scene,camera);
+}
+animate();
+
+</script>
+
+</body>
+</html
